@@ -140,6 +140,7 @@ HRESULT Camera::OnReadSample(
 
 	if (m_pReader == nullptr)
 	{
+		LeaveCriticalSection(&m_critsec);
 		return hr;
 	}
 
