@@ -5,7 +5,8 @@
 
 Camera::Camera(void * priv)
 	:render(nullptr)
-	,m_pReader(nullptr)
+	, m_pReader(nullptr)
+	, capture(false)
 {
 	InitializeCriticalSection(&m_critsec);
 
@@ -197,11 +198,6 @@ int Camera::Start(HWND hWnd)
 
 	//SafeRelease(&m_pReader);
 
-	if (hWnd != NULL)
-	{
-		render = new Render(hWnd, format, width, height);
-	}
-
 	HRESULT hr = S_OK;
 
 	IMFMediaSource  *pSource = NULL;
@@ -221,12 +217,17 @@ int Camera::Start(HWND hWnd)
 		hr = pAttributes->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, this);
 
 		hr = MFCreateSourceReaderFromMediaSource(pSource, pAttributes, &m_pReader);
-		if (!SUCCEEDED(hr))
+		if (SUCCEEDED(hr))
 		{
 		}
 	}
 	SafeRelease(&pAttributes);
 	SafeRelease(&pSource);
+
+	if (hWnd != NULL)
+	{
+		render = new Render(hWnd, format, width, height);
+	}
 
 	m_pReader->ReadSample((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, 0, NULL, NULL, NULL, NULL);
 
@@ -249,5 +250,11 @@ int Camera::Stop()
 
 	LeaveCriticalSection(&m_critsec);
 
+	return 0;
+}
+
+int Camera::Capture(byte* data)
+{
+	capture = true;
 	return 0;
 }

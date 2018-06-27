@@ -36,6 +36,7 @@ public:
 public:
 	int Start(HWND hWnd);
 	int Stop();
+	int Capture(byte* data);
 
 private:
 	long m_nRefCount;        // Reference count.
@@ -44,6 +45,8 @@ private:
 	IMFSourceReader *m_pReader;
 
 	Render* render;
+
+	bool capture;
 
 public:
 	wstring Name;

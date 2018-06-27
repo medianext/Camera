@@ -15,13 +15,17 @@ Frame::Frame():
 }
 
 
-Frame::Frame(FrameType frameType, GUID  subtype, DWORD dataSize)
+Frame::Frame(Frame *frame)
+{
+}
+
+
+Frame::Frame(GUID  subtype, DWORD dataSize)
 {
 	m_pData = (BYTE*)malloc(dataSize);
 	if (m_pData!=NULL)
 	{
 		m_dataSize = dataSize;
-		m_FrameType = frameType;
 		m_subtype = subtype;
 	}
 }
