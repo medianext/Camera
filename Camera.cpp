@@ -5,73 +5,73 @@
 
 Camera::Camera(void * priv)
 	:render(nullptr)
+	,m_pReader(nullptr)
 {
 	InitializeCriticalSection(&m_critsec);
 
-	m_pDevices = (IMFActivate*)priv;
+	IMFActivate *pDevices = (IMFActivate*)priv;
 
 	HRESULT hr = S_OK;
+
 	WCHAR * str;
-	hr = m_pDevices->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &str, NULL);
+	hr = pDevices->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_FRIENDLY_NAME, &str, NULL);
 	Name = str;
 	CoTaskMemFree(str);
-	hr = m_pDevices->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK, &str, NULL);
+	hr = pDevices->GetAllocatedString(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK, &str, NULL);
 	Link = str;
 	CoTaskMemFree(str);
 
 	IMFMediaSource  *pSource = nullptr;
-
-	hr = m_pDevices->ActivateObject(
-		__uuidof(IMFMediaSource),
-		(void**)&pSource
-	);
-
-	IMFPresentationDescriptor* presentationDescriptor = nullptr;
-	hr = pSource->CreatePresentationDescriptor(&presentationDescriptor);
+	hr = pDevices->ActivateObject(__uuidof(IMFMediaSource),(void**)&pSource);
 	if (SUCCEEDED(hr))
 	{
-		DWORD dwCount = 0;
-		presentationDescriptor->GetStreamDescriptorCount(&dwCount);
-		if (dwCount > 0)
+		IMFPresentationDescriptor* presentationDescriptor = nullptr;
+		hr = pSource->CreatePresentationDescriptor(&presentationDescriptor);
+		if (SUCCEEDED(hr))
 		{
-			BOOL bSelect;
-			IMFStreamDescriptor *pStreamDescriptor = nullptr;
-			hr = presentationDescriptor->GetStreamDescriptorByIndex(0, &bSelect, &pStreamDescriptor);
-			if (SUCCEEDED(hr) && bSelect == TRUE)
+			DWORD dwCount = 0;
+			presentationDescriptor->GetStreamDescriptorCount(&dwCount);
+			for (DWORD i = 0; i < dwCount; i++)
 			{
-				IMFMediaTypeHandler *pMediaTypeHandler = nullptr;
-				hr = pStreamDescriptor->GetMediaTypeHandler(&pMediaTypeHandler);
-				if (!SUCCEEDED(hr))
+				BOOL bSelect;
+				IMFStreamDescriptor *pStreamDescriptor = nullptr;
+				hr = presentationDescriptor->GetStreamDescriptorByIndex(i, &bSelect, &pStreamDescriptor);
+				if (SUCCEEDED(hr) && bSelect == TRUE)
 				{
-					SafeRelease(&pStreamDescriptor);
-				}
-				IMFMediaType * pMediaType = nullptr;
-				hr = pMediaTypeHandler->GetCurrentMediaType(&pMediaType);
-				if (SUCCEEDED(hr))
-				{
-					UINT32 uWidth, uHeight, uNummerator, uDenominator;
-					LONG lStride;
-					GUID subType;
-					pMediaType->GetGUID(MF_MT_SUBTYPE, &subType);
-					MFGetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, &uWidth, &uHeight);
-					MFGetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, &uNummerator, &uDenominator);
-					hr = pMediaType->GetUINT32(MF_MT_DEFAULT_STRIDE, (UINT32*)&lStride);
-					if (FAILED(hr))
+					IMFMediaTypeHandler *pMediaTypeHandler = nullptr;
+					hr = pStreamDescriptor->GetMediaTypeHandler(&pMediaTypeHandler);
+					if (SUCCEEDED(hr))
 					{
-						hr = MFGetStrideForBitmapInfoHeader(subType.Data1, uWidth, &lStride);
+						IMFMediaType * pMediaType = nullptr;
+						hr = pMediaTypeHandler->GetCurrentMediaType(&pMediaType);
+						if (SUCCEEDED(hr))
+						{
+							UINT32 uWidth, uHeight, uNummerator, uDenominator;
+							LONG lStride;
+							GUID subType;
+							pMediaType->GetGUID(MF_MT_SUBTYPE, &subType);
+							MFGetAttributeSize(pMediaType, MF_MT_FRAME_SIZE, &uWidth, &uHeight);
+							MFGetAttributeRatio(pMediaType, MF_MT_FRAME_RATE, &uNummerator, &uDenominator);
+							hr = pMediaType->GetUINT32(MF_MT_DEFAULT_STRIDE, (UINT32*)&lStride);
+							if (FAILED(hr))
+							{
+								hr = MFGetStrideForBitmapInfoHeader(subType.Data1, uWidth, &lStride);
+							}
+							format = subType;
+							stride = lStride;
+							width = uWidth;
+							height = uHeight;
+							fps = uNummerator / uDenominator;
+						}
+						SafeRelease(&pMediaType);
 					}
-					format = subType;
-					stride = lStride;
-					width = uWidth;
-					height = uHeight;
-					fps = uNummerator / uDenominator;
-					SafeRelease(&pMediaType);
+					SafeRelease(&pMediaTypeHandler);
+					break;
 				}
-				SafeRelease(&pMediaTypeHandler);
+				SafeRelease(&pStreamDescriptor);
 			}
-			SafeRelease(&pStreamDescriptor);
+			SafeRelease(&presentationDescriptor);
 		}
-		SafeRelease(&presentationDescriptor);
 	}
 }
 
@@ -80,6 +80,11 @@ Camera::~Camera()
 {
 	EnterCriticalSection(&m_critsec);
 	SafeRelease(&m_pReader);
+	if (render != nullptr)
+	{
+		delete render;
+		render = nullptr;
+	}
 	LeaveCriticalSection(&m_critsec);
 
 	DeleteCriticalSection(&m_critsec);
@@ -133,6 +138,11 @@ HRESULT Camera::OnReadSample(
 
 	EnterCriticalSection(&m_critsec);
 
+	if (m_pReader == nullptr)
+	{
+		return hr;
+	}
+
 	if (FAILED(hrStatus))
 	{
 		hr = hrStatus;
@@ -184,6 +194,8 @@ int Camera::Start(HWND hWnd)
 {
 	EnterCriticalSection(&m_critsec);
 
+	//SafeRelease(&m_pReader);
+
 	if (hWnd != NULL)
 	{
 		render = new Render(hWnd, format, width, height);
@@ -193,7 +205,6 @@ int Camera::Start(HWND hWnd)
 
 	IMFMediaSource  *pSource = NULL;
 	IMFAttributes   *pAttributes = NULL;
-	SafeRelease(&m_pReader);
 
 	hr = MFCreateAttributes(&pAttributes, 2);
 	pAttributes->SetString(MF_DEVSOURCE_ATTRIBUTE_SOURCE_TYPE_VIDCAP_SYMBOLIC_LINK, Link.c_str());
@@ -230,8 +241,10 @@ int Camera::Stop()
 	if (render != nullptr)
 	{
 		delete render;
+		render = nullptr;
 	}
 	m_pReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM);
+	SafeRelease(&m_pReader);
 
 	LeaveCriticalSection(&m_critsec);
 

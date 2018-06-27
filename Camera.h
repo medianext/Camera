@@ -41,7 +41,6 @@ private:
 	long m_nRefCount;        // Reference count.
 	CRITICAL_SECTION m_critsec;
 
-	IMFActivate *m_pDevices;
 	IMFSourceReader *m_pReader;
 
 	Render* render;
