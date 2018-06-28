@@ -8,6 +8,37 @@
 #include "Frame.h"
 
 
+int GetDefaultStride(GUID format, int width)
+{
+	if (format == MFVideoFormat_RGB32)
+	{
+		return width * 4;
+	}
+	else if (format == MFVideoFormat_RGB24)
+	{
+		return width * 3;
+	}
+	else if (format == MFVideoFormat_YUY2)
+	{
+		return width * 2;
+	}
+	else if (format == MFVideoFormat_I420)
+	{
+		return width * 3 / 2;
+	}
+	else if (format == MFVideoFormat_NV12)
+	{
+		return width * 3 / 2;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////////
+
 Frame::Frame():
     m_pData(NULL),
 	m_uTimestamp(0)
@@ -20,13 +51,17 @@ Frame::Frame(Frame *frame)
 }
 
 
-Frame::Frame(GUID  subtype, DWORD dataSize)
+Frame::Frame(GUID format, int width, int height)
 {
-	m_pData = (BYTE*)malloc(dataSize);
+	m_format = format;
+	m_width = width;
+	m_height = height;
+	m_stride = GetDefaultStride(format, width);
+	m_dataSize = m_stride * m_height;
+
+	m_pData = (BYTE*)malloc(m_dataSize);
 	if (m_pData!=NULL)
 	{
-		m_dataSize = dataSize;
-		m_subtype = subtype;
 	}
 }
 
@@ -48,7 +83,7 @@ Frame::Frame(IMFMediaBuffer* pBuffer, GUID format, int width, int height, int st
 	pBuffer->Lock(&pData, NULL, NULL);
 	memcpy(m_pData, pData, m_dataSize);
 	pBuffer->Unlock();
-	m_subtype = format;
+	m_format = format;
 	m_width = width;
 	m_height = height;
 	if (lStride<0){

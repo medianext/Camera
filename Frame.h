@@ -13,7 +13,7 @@ class Frame
 public:
 	Frame();
 	Frame(Frame *frame);
-	Frame(GUID subtype, DWORD dataSize);
+	Frame(GUID format, int width, int height);
 	Frame(IMFMediaBuffer*, GUID format, int width, int height, int stride);
     ~Frame();
 
@@ -22,7 +22,7 @@ private:
 
 public:
     // common filed
-	GUID  m_subtype;
+	GUID  m_format;
     BYTE  *m_pData = NULL;
 	DWORD m_dataSize = 0;
 	LONGLONG m_uTimestamp = 0;

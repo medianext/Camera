@@ -7,6 +7,7 @@ Camera::Camera(void * priv)
 	:render(nullptr)
 	, m_pReader(nullptr)
 	, capture(false)
+	, curFrame(nullptr)
 {
 	InitializeCriticalSection(&m_critsec);
 
@@ -162,10 +163,18 @@ HRESULT Camera::OnReadSample(
 				{
 					Frame frame(pBuffer,  format, width, height, stride);
 					frame.m_uTimestamp = llTimestamp / 10;
+
+					if (m_convertFn != NULL && curFrame != nullptr)
+					{
+						m_convertFn(curFrame->m_pData, curFrame->m_stride, frame.m_pData, stride, width, height);
+					}
 					
 					if(render != nullptr)
 					{
-						render->DrawFrame(&frame);
+						if (curFrame)
+						{
+							render->DrawFrame(curFrame);
+						}
 					}
 				}
 			}
@@ -224,6 +233,19 @@ int Camera::Start(HWND hWnd)
 	SafeRelease(&pAttributes);
 	SafeRelease(&pSource);
 
+	m_convertFn = ChooseTranscodeFn(format);
+	if (m_convertFn != NULL)
+	{
+		format = MFVideoFormat_RGB32;
+	}
+
+	if (curFrame != nullptr)
+	{
+		delete curFrame;
+		curFrame = nullptr;
+	}
+	curFrame = new Frame(format, width, height);
+
 	if (hWnd != NULL)
 	{
 		render = new Render(hWnd, format, width, height);
@@ -248,13 +270,33 @@ int Camera::Stop()
 	m_pReader->Flush(MF_SOURCE_READER_FIRST_VIDEO_STREAM);
 	SafeRelease(&m_pReader);
 
+	if (curFrame != nullptr)
+	{
+		delete curFrame;
+		curFrame = nullptr;
+	}
+
 	LeaveCriticalSection(&m_critsec);
 
 	return 0;
 }
 
-int Camera::Capture(byte* data)
+int Camera::Capture(byte* data, int* w, int* h)
 {
-	capture = true;
-	return 0;
+	EnterCriticalSection(&m_critsec);
+	if (curFrame != nullptr)
+	{
+		if (data != nullptr)
+		{
+			memcpy(data, curFrame->m_pData, curFrame->m_dataSize);
+		}
+
+		if (w!=nullptr && h!=nullptr)
+		{
+			*w = curFrame->m_width;
+			*h = curFrame->m_height;
+		}
+	}
+	LeaveCriticalSection(&m_critsec);
+	return curFrame->m_dataSize;
 }

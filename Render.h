@@ -2,23 +2,7 @@
 
 #include "stdafx.h"
 #include "Frame.h"
-
-
-typedef void(*IMAGE_TRANSFORM_FN)(
-	BYTE*       pDest,
-	LONG        lDestStride,
-	const BYTE* pSrc,
-	LONG        lSrcStride,
-	DWORD       dwWidthInPixels,
-	DWORD       dwHeightInPixels
-	);
-
-struct VideoConversionFunction
-{
-	GUID               subtype;
-	IMAGE_TRANSFORM_FN xform;
-};
-
+#include "Transcode.h"
 
 
 class Render
@@ -30,7 +14,6 @@ public:
 
 private:
 	HRESULT TestCooperativeLevel();
-	HRESULT ChooseConversionFunction(REFGUID subtype);
 
 public:
 

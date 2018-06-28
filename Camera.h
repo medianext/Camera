@@ -36,7 +36,7 @@ public:
 public:
 	int Start(HWND hWnd);
 	int Stop();
-	int Capture(byte* data);
+	int Capture(byte* data, int* w, int* h);
 
 private:
 	long m_nRefCount;        // Reference count.
@@ -47,6 +47,10 @@ private:
 	Render* render;
 
 	bool capture;
+
+	IMAGE_TRANSFORM_FN      m_convertFn;
+
+	Frame* curFrame;
 
 public:
 	wstring Name;
@@ -60,3 +64,4 @@ public:
 	int fps;
 };
 
+int GetDefaultStride(GUID format, int width);
