@@ -166,7 +166,7 @@ HRESULT Camera::OnReadSample(
 
 					if (m_convertFn != NULL && curFrame != nullptr)
 					{
-						m_convertFn(curFrame->m_pData, curFrame->m_stride, frame.m_pData, stride, width, height);
+						m_convertFn(curFrame->m_pData, curFrame->m_stride, frame.m_pData, frame.m_stride, width, height);
 					}
 					
 					if(render != nullptr)
